@@ -14,7 +14,5 @@ export type SignalMsg =
   | { type: "answer"; sdp: RTCSessionDescriptionInit }
   | { type: "ice"; candidate: RTCIceCandidateInit }
   | { type: "admin-join" }
-  | { type: "client-ready"; allowDraw: boolean }
-  | { type: "draw"; x: number; y: number; drag: boolean; color: string; size: number }
-  | { type: "clear" }
+  | { type: "client-ready" }
   | { type: "end" };
