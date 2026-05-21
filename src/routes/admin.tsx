@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ICE_SERVERS, type SignalMsg } from "@/lib/webrtc";
-import { ArrowLeft, PhoneOff, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
+import { PhoneOff, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/admin")({
