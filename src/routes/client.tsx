@@ -2,11 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ICE_SERVERS, generateCode, type SignalMsg } from "@/lib/webrtc";
-import { Mic, MicOff, Monitor, Copy, Check, ArrowLeft, PhoneOff, Volume2, VolumeX } from "lucide-react";
+import { Mic, MicOff, Monitor, Copy, Check, PhoneOff, Volume2, VolumeX, MonitorOff } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/client")({
-  head: () => ({ meta: [{ title: "Client — ScreenLink" }] }),
+  head: () => ({ meta: [{ title: "Client — Eleven Solutions" }] }),
   component: ClientPage,
 });
 
@@ -41,6 +41,11 @@ function ClientPage() {
   const startShare = async () => {
     setError(null);
     try {
+      if (typeof navigator.mediaDevices?.getDisplayMedia !== "function") {
+        throw new Error(
+          "Screen sharing isn't supported on this device. Please open this page on a desktop browser (Chrome, Edge, Firefox or Safari)."
+        );
+      }
       const display = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 30 },
         audio: shareTabAudio,
@@ -171,38 +176,50 @@ function ClientPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-4" /> Back
+      <header className="border-b border-border/60">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 font-extrabold tracking-tight">
+            <span>Eleven</span>
+            <span className="text-brand">XI</span>
           </Link>
-          <div className="font-semibold">Client Portal</div>
-          <div className="w-16" />
+          <div className="text-sm text-muted-foreground">Client Portal</div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         {status === "idle" && (
-          <div className="max-w-md mx-auto rounded-2xl border bg-card p-8 space-y-6">
+          <div className="max-w-md mx-auto rounded-2xl border-2 bg-card p-8 space-y-6">
             <div>
-              <h1 className="text-2xl font-bold mb-1">Start a session</h1>
+              <h1 className="text-3xl font-black tracking-tight mb-1">Start a session</h1>
               <p className="text-sm text-muted-foreground">
                 Pick your options then share your screen.
               </p>
             </div>
 
+            {typeof window !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia !== "function" && (
+              <div className="flex gap-3 rounded-lg border-2 border-brand/30 bg-brand/5 p-3 text-sm">
+                <MonitorOff className="size-5 text-brand shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold mb-0.5">Desktop required</div>
+                  <div className="text-muted-foreground text-xs">
+                    Screen sharing isn't supported on mobile browsers. Please open this page on a computer (Chrome, Edge, Firefox or Safari).
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               <Toggle
                 icon={mic ? <Mic className="size-4" /> : <MicOff className="size-4" />}
                 label="Enable microphone"
-                desc="Let the admin hear your voice"
+                desc="Let the agent hear your voice"
                 value={mic}
                 onChange={setMic}
               />
               <Toggle
                 icon={<Volume2 className="size-4" />}
                 label="Share tab audio"
-                desc="Let the admin hear audio from the shared tab"
+                desc="Let the agent hear audio from the shared tab"
                 value={shareTabAudio}
                 onChange={setShareTabAudio}
               />
@@ -214,12 +231,12 @@ function ClientPage() {
 
             <button
               onClick={startShare}
-              className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-3 font-medium hover:bg-primary/90 transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 bg-brand text-brand-foreground rounded-lg px-4 py-3 font-semibold hover:bg-brand/90 transition-colors"
             >
               <Monitor className="size-4" /> Share my screen
             </button>
             <p className="text-xs text-muted-foreground">
-              Tip: when prompted to share, pick a tab and check "Share tab audio" to let the admin hear it.
+              Tip: when prompted to share, pick a tab and check "Share tab audio" to let the agent hear it.
             </p>
           </div>
         )}

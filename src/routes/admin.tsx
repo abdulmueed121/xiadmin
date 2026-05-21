@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ICE_SERVERS, type SignalMsg } from "@/lib/webrtc";
-import { ArrowLeft, PhoneOff, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
+import { PhoneOff, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/admin")({
@@ -157,13 +157,13 @@ function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-4" /> Back
+      <header className="border-b border-border/60">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 font-extrabold tracking-tight">
+            <span>Eleven</span>
+            <span className="text-brand">XI</span>
           </Link>
-          <div className="font-semibold">Admin Portal</div>
-          <div className="w-16" />
+          <div className="text-sm text-muted-foreground">Agent Portal</div>
         </div>
       </header>
 
