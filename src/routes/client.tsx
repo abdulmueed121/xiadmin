@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ICE_SERVERS, generateCode, type SignalMsg } from "@/lib/webrtc";
-import { Mic, MicOff, Pencil, PencilOff, Monitor, Copy, Check, ArrowLeft, PhoneOff } from "lucide-react";
+import { Mic, MicOff, Monitor, Copy, Check, ArrowLeft, PhoneOff, Volume2, VolumeX } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/client")({
@@ -14,18 +14,18 @@ type Status = "idle" | "sharing" | "connected" | "ended";
 
 function ClientPage() {
   const [mic, setMic] = useState(true);
-  const [drawing, setDrawing] = useState(true);
+  const [shareTabAudio, setShareTabAudio] = useState(true);
   const [status, setStatus] = useState<Status>("idle");
   const [code, setCode] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adminMuted, setAdminMuted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const overlayRef = useRef<HTMLCanvasElement>(null);
+  const adminAudioRef = useRef<HTMLAudioElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const lastDrawRef = useRef<{ x: number; y: number } | null>(null);
 
   const cleanup = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -38,63 +38,14 @@ function ClientPage() {
 
   useEffect(() => () => cleanup(), []);
 
-  // Resize overlay to match video
-  useEffect(() => {
-    const sync = () => {
-      const v = videoRef.current;
-      const c = overlayRef.current;
-      if (!v || !c) return;
-      c.width = v.clientWidth;
-      c.height = v.clientHeight;
-    };
-    sync();
-    window.addEventListener("resize", sync);
-    const id = setInterval(sync, 500);
-    return () => {
-      window.removeEventListener("resize", sync);
-      clearInterval(id);
-    };
-  }, [status]);
-
-  const drawSegment = (
-    x: number,
-    y: number,
-    drag: boolean,
-    color: string,
-    size: number,
-  ) => {
-    const c = overlayRef.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    const px = x * c.width;
-    const py = y * c.height;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = size;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    if (!drag || !lastDrawRef.current) {
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px + 0.01, py + 0.01);
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.moveTo(lastDrawRef.current.x, lastDrawRef.current.y);
-      ctx.lineTo(px, py);
-      ctx.stroke();
-    }
-    lastDrawRef.current = { x: px, y: py };
-  };
-
   const startShare = async () => {
     setError(null);
     try {
       const display = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 30 },
-        audio: false,
+        audio: shareTabAudio,
       });
-      let stream = display;
+      const stream = display;
       if (mic) {
         try {
           const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -122,6 +73,13 @@ function ClientPage() {
       pcRef.current = pc;
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
 
+      pc.ontrack = (e) => {
+        // Admin's microphone audio
+        if (adminAudioRef.current) {
+          adminAudioRef.current.srcObject = e.streams[0];
+        }
+      };
+
       pc.onicecandidate = (e) => {
         if (e.candidate) {
           channel.send({
@@ -138,7 +96,7 @@ function ClientPage() {
       channel.on("broadcast", { event: "signal" }, async ({ payload }) => {
         const msg = payload as SignalMsg;
         if (msg.type === "admin-join") {
-          const offer = await pc.createOffer();
+          const offer = await pc.createOffer({ offerToReceiveAudio: true });
           await pc.setLocalDescription(offer);
           channel.send({
             type: "broadcast",
@@ -153,11 +111,6 @@ function ClientPage() {
           } catch (e) {
             console.warn("ICE add fail", e);
           }
-        } else if (msg.type === "draw" && drawing) {
-          drawSegment(msg.x, msg.y, msg.drag, msg.color, msg.size);
-        } else if (msg.type === "clear") {
-          const c = overlayRef.current;
-          c?.getContext("2d")?.clearRect(0, 0, c.width, c.height);
         } else if (msg.type === "end") {
           endSession();
         }
@@ -168,7 +121,7 @@ function ClientPage() {
           channel.send({
             type: "broadcast",
             event: "signal",
-            payload: { type: "client-ready", allowDraw: drawing } as SignalMsg,
+            payload: { type: "client-ready" } as SignalMsg,
           });
         }
       });
@@ -200,7 +153,20 @@ function ClientPage() {
   const toggleMic = () => {
     const enabled = !mic;
     setMic(enabled);
-    streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = enabled));
+    streamRef.current?.getAudioTracks().forEach((t) => {
+      // Only toggle mic tracks (not display/tab audio tracks). Best-effort:
+      // mic tracks typically have label containing "microphone" or no displaySurface.
+      if (t.label.toLowerCase().includes("mic") || t.label === "" || !t.label.toLowerCase().includes("tab")) {
+        t.enabled = enabled;
+      }
+    });
+  };
+
+  const toggleAdminAudio = () => {
+    setAdminMuted((m) => {
+      if (adminAudioRef.current) adminAudioRef.current.muted = !m;
+      return !m;
+    });
   };
 
   return (
@@ -229,16 +195,16 @@ function ClientPage() {
               <Toggle
                 icon={mic ? <Mic className="size-4" /> : <MicOff className="size-4" />}
                 label="Enable microphone"
-                desc="Let the admin hear you"
+                desc="Let the admin hear your voice"
                 value={mic}
                 onChange={setMic}
               />
               <Toggle
-                icon={drawing ? <Pencil className="size-4" /> : <PencilOff className="size-4" />}
-                label="Allow drawing"
-                desc="Admin can annotate your screen"
-                value={drawing}
-                onChange={setDrawing}
+                icon={<Volume2 className="size-4" />}
+                label="Share tab audio"
+                desc="Let the admin hear audio from the shared tab"
+                value={shareTabAudio}
+                onChange={setShareTabAudio}
               />
             </div>
 
@@ -252,6 +218,9 @@ function ClientPage() {
             >
               <Monitor className="size-4" /> Share my screen
             </button>
+            <p className="text-xs text-muted-foreground">
+              Tip: when prompted to share, pick a tab and check "Share tab audio" to let the admin hear it.
+            </p>
           </div>
         )}
 
@@ -285,9 +254,16 @@ function ClientPage() {
                 <button
                   onClick={toggleMic}
                   className="p-2 rounded-md border hover:bg-accent"
-                  title={mic ? "Mute" : "Unmute"}
+                  title={mic ? "Mute mic" : "Unmute mic"}
                 >
                   {mic ? <Mic className="size-4" /> : <MicOff className="size-4 text-destructive" />}
+                </button>
+                <button
+                  onClick={toggleAdminAudio}
+                  className="p-2 rounded-md border hover:bg-accent"
+                  title={adminMuted ? "Unmute admin" : "Mute admin"}
+                >
+                  {adminMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
                 </button>
                 <button
                   onClick={endSession}
@@ -300,10 +276,10 @@ function ClientPage() {
 
             <div className="relative rounded-xl overflow-hidden border bg-black aspect-video">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
-              <canvas ref={overlayRef} className="absolute inset-0 pointer-events-none" />
             </div>
+            <audio ref={adminAudioRef} autoPlay playsInline />
             <p className="text-xs text-muted-foreground text-center">
-              This is a preview of what the admin sees. Any annotations they draw appear here in real time.
+              This is a preview of what the admin sees. You'll hear the admin's voice when they speak.
             </p>
           </div>
         )}
