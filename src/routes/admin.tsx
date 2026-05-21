@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ICE_SERVERS, type SignalMsg } from "@/lib/webrtc";
-import { ArrowLeft, PhoneOff, Eraser, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, PhoneOff, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/admin")({
@@ -12,115 +12,28 @@ export const Route = createFileRoute("/admin")({
 
 type Status = "idle" | "connecting" | "live" | "ended";
 
-const COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308", "#ffffff"];
-
 function AdminPage() {
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [color, setColor] = useState(COLORS[0]);
-  const [size, setSize] = useState(4);
+  const [enableMic, setEnableMic] = useState(true);
+  const [micOn, setMicOn] = useState(true);
   const [muted, setMuted] = useState(false);
-  const [canDraw, setCanDraw] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const drawingRef = useRef(false);
-  const lastLocalRef = useRef<{ x: number; y: number } | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
 
   const cleanup = () => {
+    micStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
     if (channelRef.current) supabase.removeChannel(channelRef.current);
+    micStreamRef.current = null;
     pcRef.current = null;
     channelRef.current = null;
   };
   useEffect(() => () => cleanup(), []);
-
-  useEffect(() => {
-    const sync = () => {
-      const v = videoRef.current;
-      const c = canvasRef.current;
-      if (!v || !c) return;
-      c.width = v.clientWidth;
-      c.height = v.clientHeight;
-    };
-    sync();
-    window.addEventListener("resize", sync);
-    const id = setInterval(sync, 500);
-    return () => {
-      window.removeEventListener("resize", sync);
-      clearInterval(id);
-    };
-  }, [status]);
-
-  const drawLocal = (x: number, y: number, drag: boolean) => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = size;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    if (!drag || !lastLocalRef.current) {
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + 0.01, y + 0.01);
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.moveTo(lastLocalRef.current.x, lastLocalRef.current.y);
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-    lastLocalRef.current = { x, y };
-  };
-
-  const sendDraw = (nx: number, ny: number, drag: boolean) => {
-    channelRef.current?.send({
-      type: "broadcast",
-      event: "signal",
-      payload: { type: "draw", x: nx, y: ny, drag, color, size } as SignalMsg,
-    });
-  };
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (!canDraw) return;
-    const c = canvasRef.current!;
-    const rect = c.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    drawingRef.current = true;
-    lastLocalRef.current = null;
-    drawLocal(x, y, false);
-    sendDraw(x / c.width, y / c.height, false);
-    c.setPointerCapture(e.pointerId);
-  };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!drawingRef.current || !canDraw) return;
-    const c = canvasRef.current!;
-    const rect = c.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    drawLocal(x, y, true);
-    sendDraw(x / c.width, y / c.height, true);
-  };
-  const onPointerUp = () => {
-    drawingRef.current = false;
-    lastLocalRef.current = null;
-  };
-
-  const clearCanvas = () => {
-    const c = canvasRef.current;
-    c?.getContext("2d")?.clearRect(0, 0, c.width, c.height);
-    channelRef.current?.send({
-      type: "broadcast",
-      event: "signal",
-      payload: { type: "clear" } as SignalMsg,
-    });
-  };
 
   const connect = async () => {
     setError(null);
@@ -130,6 +43,17 @@ function AdminPage() {
     }
     setStatus("connecting");
 
+    // Acquire mic up-front so it's included in the SDP answer (avoids renegotiation).
+    if (enableMic) {
+      try {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setMicOn(true);
+      } catch (e) {
+        console.warn("Mic denied", e);
+        setEnableMic(false);
+      }
+    }
+
     const channel = supabase.channel(`rtc:${code}`, {
       config: { broadcast: { self: false, ack: false } },
     });
@@ -137,6 +61,10 @@ function AdminPage() {
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
     pcRef.current = pc;
+
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((t) => pc.addTrack(t, micStreamRef.current!));
+    }
 
     pc.ontrack = (e) => {
       if (videoRef.current) {
@@ -177,7 +105,6 @@ function AdminPage() {
           console.warn("ICE add fail", e);
         }
       } else if (msg.type === "client-ready") {
-        setCanDraw(msg.allowDraw);
         channel.send({
           type: "broadcast",
           event: "signal",
@@ -191,13 +118,11 @@ function AdminPage() {
 
     await channel.subscribe((s) => {
       if (s === "SUBSCRIBED") {
-        // Ask the client to send an offer
         channel.send({
           type: "broadcast",
           event: "signal",
           payload: { type: "admin-join" } as SignalMsg,
         });
-        // Fail if client never responds
         setTimeout(() => {
           if (pcRef.current && pcRef.current.connectionState !== "connected" && !pcRef.current.remoteDescription) {
             setError("No client found with that code. Make sure the client started sharing.");
@@ -222,6 +147,12 @@ function AdminPage() {
       if (videoRef.current) videoRef.current.muted = !m;
       return !m;
     });
+  };
+
+  const toggleMic = () => {
+    const next = !micOn;
+    setMicOn(next);
+    micStreamRef.current?.getAudioTracks().forEach((t) => (t.enabled = next));
   };
 
   return (
@@ -252,6 +183,20 @@ function AdminPage() {
               inputMode="numeric"
               className="w-full text-center font-mono text-3xl tracking-widest py-4 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
             />
+
+            <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent">
+              <input
+                type="checkbox"
+                checked={enableMic}
+                onChange={(e) => setEnableMic(e.target.checked)}
+                className="size-4"
+              />
+              <span className="flex-1">
+                <span className="block text-sm font-medium">Enable my microphone</span>
+                <span className="block text-xs text-muted-foreground">Let the client hear your voice</span>
+              </span>
+            </label>
+
             {error && (
               <p className="text-sm text-destructive bg-destructive/10 rounded-md p-3">{error}</p>
             )}
@@ -278,42 +223,20 @@ function AdminPage() {
                 {status === "live" ? `Live — code ${code}` : "Connecting..."}
               </span>
 
-              {canDraw && (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    {COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => setColor(c)}
-                        className={`size-6 rounded-full border-2 ${
-                          color === c ? "border-foreground scale-110" : "border-transparent"
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                  <input
-                    type="range"
-                    min={2}
-                    max={20}
-                    value={size}
-                    onChange={(e) => setSize(Number(e.target.value))}
-                    className="w-24"
-                  />
-                  <button
-                    onClick={clearCanvas}
-                    className="inline-flex items-center gap-1 text-xs px-2 py-1.5 rounded-md border hover:bg-accent"
-                  >
-                    <Eraser className="size-3" /> Clear
-                  </button>
-                </div>
-              )}
-
               <div className="flex items-center gap-2">
+                {micStreamRef.current && (
+                  <button
+                    onClick={toggleMic}
+                    className="p-2 rounded-md border hover:bg-accent"
+                    title={micOn ? "Mute mic" : "Unmute mic"}
+                  >
+                    {micOn ? <Mic className="size-4" /> : <MicOff className="size-4 text-destructive" />}
+                  </button>
+                )}
                 <button
                   onClick={toggleMute}
                   className="p-2 rounded-md border hover:bg-accent"
-                  title={muted ? "Unmute" : "Mute"}
+                  title={muted ? "Unmute client" : "Mute client"}
                 >
                   {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
                 </button>
@@ -332,20 +255,7 @@ function AdminPage() {
 
             <div className="relative rounded-xl overflow-hidden border bg-black aspect-video">
               <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain" />
-              <canvas
-                ref={canvasRef}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerLeave={onPointerUp}
-                className={`absolute inset-0 ${canDraw ? "cursor-crosshair" : "pointer-events-none"}`}
-              />
             </div>
-            {!canDraw && (
-              <p className="text-xs text-muted-foreground text-center">
-                Client has drawing disabled.
-              </p>
-            )}
           </div>
         )}
 
