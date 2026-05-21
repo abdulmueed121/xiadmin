@@ -171,13 +171,13 @@ function ClientPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-4" /> Back
+      <header className="border-b border-border/60">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 font-extrabold tracking-tight">
+            <span>Eleven</span>
+            <span className="text-brand">XI</span>
           </Link>
-          <div className="font-semibold">Client Portal</div>
-          <div className="w-16" />
+          <div className="text-sm text-muted-foreground">Client Portal</div>
         </div>
       </header>
 
