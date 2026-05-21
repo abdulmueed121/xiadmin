@@ -193,7 +193,6 @@ function EmbedWidget() {
       <div className="rounded-2xl border-2 bg-card p-4 space-y-3 max-w-sm mx-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 font-extrabold tracking-tight text-sm">
-            <span>Eleven</span>
             <span className="text-brand">XI</span>
           </div>
           {status === "connected" && (

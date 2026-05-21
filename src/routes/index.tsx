@@ -17,7 +17,6 @@ function Index() {
       <header className="border-b border-border/60">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 font-extrabold text-xl tracking-tight">
-            <span>Eleven</span>
             <span className="text-brand">XI</span>
           </div>
           <a href="https://elev1solutions.com" className="text-sm text-muted-foreground hover:text-foreground">elevensolutions.com</a>
