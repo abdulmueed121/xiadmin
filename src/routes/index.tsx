@@ -20,7 +20,7 @@ function Index() {
             <span>Eleven</span>
             <span className="text-brand">XI</span>
           </div>
-          <a href="https://elevensolutions.com" className="text-sm text-muted-foreground hover:text-foreground">elevensolutions.com</a>
+          <a href="https://eleve1solutions.com" className="text-sm text-muted-foreground hover:text-foreground">elevensolutions.com</a>
         </div>
       </header>
 
