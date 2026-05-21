@@ -188,26 +188,38 @@ function ClientPage() {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         {status === "idle" && (
-          <div className="max-w-md mx-auto rounded-2xl border bg-card p-8 space-y-6">
+          <div className="max-w-md mx-auto rounded-2xl border-2 bg-card p-8 space-y-6">
             <div>
-              <h1 className="text-2xl font-bold mb-1">Start a session</h1>
+              <h1 className="text-3xl font-black tracking-tight mb-1">Start a session</h1>
               <p className="text-sm text-muted-foreground">
                 Pick your options then share your screen.
               </p>
             </div>
 
+            {typeof window !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia !== "function" && (
+              <div className="flex gap-3 rounded-lg border-2 border-brand/30 bg-brand/5 p-3 text-sm">
+                <MonitorOff className="size-5 text-brand shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold mb-0.5">Desktop required</div>
+                  <div className="text-muted-foreground text-xs">
+                    Screen sharing isn't supported on mobile browsers. Please open this page on a computer (Chrome, Edge, Firefox or Safari).
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               <Toggle
                 icon={mic ? <Mic className="size-4" /> : <MicOff className="size-4" />}
                 label="Enable microphone"
-                desc="Let the admin hear your voice"
+                desc="Let the agent hear your voice"
                 value={mic}
                 onChange={setMic}
               />
               <Toggle
                 icon={<Volume2 className="size-4" />}
                 label="Share tab audio"
-                desc="Let the admin hear audio from the shared tab"
+                desc="Let the agent hear audio from the shared tab"
                 value={shareTabAudio}
                 onChange={setShareTabAudio}
               />
@@ -219,12 +231,12 @@ function ClientPage() {
 
             <button
               onClick={startShare}
-              className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-3 font-medium hover:bg-primary/90 transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 bg-brand text-brand-foreground rounded-lg px-4 py-3 font-semibold hover:bg-brand/90 transition-colors"
             >
               <Monitor className="size-4" /> Share my screen
             </button>
             <p className="text-xs text-muted-foreground">
-              Tip: when prompted to share, pick a tab and check "Share tab audio" to let the admin hear it.
+              Tip: when prompted to share, pick a tab and check "Share tab audio" to let the agent hear it.
             </p>
           </div>
         )}
