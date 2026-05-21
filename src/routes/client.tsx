@@ -41,6 +41,11 @@ function ClientPage() {
   const startShare = async () => {
     setError(null);
     try {
+      if (typeof navigator.mediaDevices?.getDisplayMedia !== "function") {
+        throw new Error(
+          "Screen sharing isn't supported on this device. Please open this page on a desktop browser (Chrome, Edge, Firefox or Safari)."
+        );
+      }
       const display = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 30 },
         audio: shareTabAudio,
