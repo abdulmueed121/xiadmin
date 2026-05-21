@@ -2,11 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ICE_SERVERS, generateCode, type SignalMsg } from "@/lib/webrtc";
-import { Mic, MicOff, Monitor, Copy, Check, ArrowLeft, PhoneOff, Volume2, VolumeX } from "lucide-react";
+import { Mic, MicOff, Monitor, Copy, Check, PhoneOff, Volume2, VolumeX, MonitorOff } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/client")({
-  head: () => ({ meta: [{ title: "Client — ScreenLink" }] }),
+  head: () => ({ meta: [{ title: "Client — Eleven Solutions" }] }),
   component: ClientPage,
 });
 
