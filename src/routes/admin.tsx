@@ -160,7 +160,6 @@ function AdminPage() {
       <header className="border-b border-border/60">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 font-extrabold tracking-tight">
-            <span>Eleven</span>
             <span className="text-brand">XI</span>
           </Link>
           <div className="text-sm text-muted-foreground">Agent Portal</div>
