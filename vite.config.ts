@@ -4,14 +4,15 @@ import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
+// NOTE: TanStack Start v1.167+ does not expose a Nitro preset selector.
+// The Vite plugin always emits a Web fetch handler (worker-entry-*.js).
+// For Vercel, `scripts/build-vercel.mjs` (run after `vite build`) wraps
+// that handler as a Vercel Edge Function under `.vercel/output/`.
+// For Cloudflare, `wrangler.jsonc` consumes the same handler directly.
 export default defineConfig({
   plugins: [
     tanstackStart({
-      server: { 
-        // @ts-ignore: Bypassing strict types to pass the preset to the underlying Nitro engine
-        preset: "vercel",
-        entry: "server"
-      }
+      server: { entry: "server" },
     }),
     viteReact(),
     tailwindcss(),
