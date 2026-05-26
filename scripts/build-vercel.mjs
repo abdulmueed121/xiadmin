@@ -3,7 +3,7 @@
 // directory and serves it as-is, bypassing its framework presets.
 //
 // Strategy: copy dist/client -> .vercel/output/static (CDN assets),
-// wrap dist/server/assets/worker-entry-*.js as an Edge Function at
+// wrap dist/server/assets/worker-entry-*.js as a Node.js Function at
 // .vercel/output/functions/_render.func, route filesystem-miss -> _render.
 import { cp, mkdir, writeFile, readdir, rm, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -54,7 +54,7 @@ if (existsSync(join(serverDir, "server.js"))) {
   entryRel = `assets/${worker}`;
 }
 
-// 3. Build the Edge Function at .vercel/output/functions/_render.func
+// 3. Build the Node.js Function at .vercel/output/functions/_render.func
 const funcDir = join(out, "functions", "_render.func");
 await mkdir(funcDir, { recursive: true });
 await cp(serverDir, funcDir, { recursive: true });
@@ -66,12 +66,14 @@ export default handler;
 `,
 );
 
+// CHANGED: Swapped "edge" for "nodejs20.x" and updated required Vercel keys.
 await writeFile(
   join(funcDir, ".vc-config.json"),
   JSON.stringify(
     {
-      runtime: "edge",
-      entrypoint: "index.js",
+      runtime: "nodejs20.x",
+      handler: "index.js",
+      launcherType: "Nodejs",
     },
     null,
     2,
@@ -91,4 +93,4 @@ await writeFile(
   ),
 );
 
-console.log("✓ .vercel/output generated (edge function: _render)");
+console.log("✓ .vercel/output generated (Node.js function: _render)");
