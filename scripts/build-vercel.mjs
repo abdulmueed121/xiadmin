@@ -30,32 +30,38 @@ if (existsSync(clientDir)) {
   console.warn("⚠ dist/client missing — no static assets copied.");
 }
 
-// 2. Find the built server entry (worker-entry-[hash].js)
+// 2. Locate the built server entry. Current TanStack Start emits
+// dist/server/server.js; older Cloudflare builds emitted
+// dist/server/assets/worker-entry-[hash].js — support both.
 const serverDir = join(dist, "server");
-const assetsDir = join(serverDir, "assets");
-if (!existsSync(assetsDir)) {
-  throw new Error(`dist/server/assets missing — server build failed.`);
+if (!existsSync(serverDir)) {
+  throw new Error(`dist/server missing — server build failed.`);
 }
-const entries = await readdir(assetsDir);
-const workerEntry = entries.find(
-  (f) => f.startsWith("worker-entry") && f.endsWith(".js"),
-);
-if (!workerEntry) {
-  throw new Error(
-    `worker-entry-*.js not found in ${assetsDir}. Entries: ${entries.join(", ")}`,
+let entryRel;
+if (existsSync(join(serverDir, "server.js"))) {
+  entryRel = "server.js";
+} else {
+  const assetsDir = join(serverDir, "assets");
+  const list = existsSync(assetsDir) ? await readdir(assetsDir) : [];
+  const worker = list.find(
+    (f) => f.startsWith("worker-entry") && f.endsWith(".js"),
   );
+  if (!worker) {
+    throw new Error(
+      `No server entry found (server.js or assets/worker-entry-*.js).`,
+    );
+  }
+  entryRel = `assets/${worker}`;
 }
 
 // 3. Build the Edge Function at .vercel/output/functions/_render.func
 const funcDir = join(out, "functions", "_render.func");
 await mkdir(funcDir, { recursive: true });
-// Copy entire server dir so the bundle's relative imports still resolve
 await cp(serverDir, funcDir, { recursive: true });
 
-// Edge-runtime shim: re-export the fetch handler as default
 await writeFile(
   join(funcDir, "index.js"),
-  `import handler from "./assets/${workerEntry}";
+  `import handler from "./${entryRel}";
 export default handler;
 `,
 );
