@@ -1,9 +1,12 @@
-@import "tailwindcss" source(none);
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
-@source "../src";
+
+@import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* Tailwind v4 directives */
+@source "../src";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 /*
  * Design system definition.
